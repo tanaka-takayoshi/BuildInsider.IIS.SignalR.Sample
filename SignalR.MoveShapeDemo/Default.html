@@ -1,0 +1,59 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>SignalR オブジェクトの移動 デモ</title>
+    <style>
+        #shape {
+            width: 100px;
+            height: 100px;
+            background-color: #FF0000;
+        }
+    </style>
+</head>
+<body>
+    <script src="Scripts/jquery-1.10.2.min.js"></script>
+    <script src="Scripts/jquery-ui-1.10.3.min.js"></script>
+    <script src="Scripts/jquery.signalR-2.0.0.js"></script>
+    <script src="/signalr/hubs"></script>
+    <script>
+        $(function () {
+            var moveShapeHub = $.connection.moveShapeHub,
+                $shape = $("#shape"),
+                //サーバーへは最大 10回/sec まで送信する
+                messageFrequency = 10,
+                updateRate = 1000 / messageFrequency,
+                shapeModel = {
+                    left: 0,
+                    top: 0
+                },
+                moved = false;
+            moveShapeHub.client.updateShape = function (model) {
+                shapeModel = model;
+                // スムーズに動いているように見せるため、アニメーションを書ける
+                // アニメーションが遅延した場合は、最新の情報に更新するため
+                // キューイングはしない
+                $shape.animate(shapeModel, { duration: updateRate, queue: false });
+            };
+            $.connection.hub.start().done(function () {
+                $shape.draggable({
+                    drag: function () {
+                        shapeModel = $shape.offset();
+                        moved = true;
+                    }
+                });
+                // 一定時間起きにクライアントからサーバーに送信するようにする
+                setInterval(updateServerModel, updateRate);
+            });
+            function updateServerModel() {
+                // 以前の位置から移動していた時のみサーバーに送信する
+                if (moved) {
+                    moveShapeHub.server.updateModel(shapeModel);
+                    moved = false;
+                }
+            }
+        });
+    </script>
+
+    <div id="shape"></div>
+</body>
+</html>
